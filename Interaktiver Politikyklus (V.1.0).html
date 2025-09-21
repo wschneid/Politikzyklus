@@ -1,0 +1,253 @@
+
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Der interaktive Politikzyklus</title>
+  <style>
+    :root {
+      --primary-blue: #173a79;
+      --secondary-green: #10b981;
+      --warning-red: #ef4444;
+      --border-color: #ccc;
+      --light-bg: #f8fafc;
+    }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #eef2f7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 40px 20px;
+      box-sizing: border-box;
+    }
+    h1 {
+      margin-bottom: 20px;
+      color: #333;
+      text-align: center;
+    }
+    .cycle-container {
+      position: relative;
+      width: 1300px;
+      height: 700px;
+      margin-bottom: 20px;
+      max-width: 100%;
+    }
+    svg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 600px;
+    }
+    .segment { fill: #e0e0e0; stroke: #333; stroke-width: 2; transition: fill 0.3s ease-in-out; cursor: pointer; }
+    .highlight { fill: var(--primary-blue) !important; }
+    .segment-text { font-size: 14px; fill: #000; text-anchor: middle; dominant-baseline: central; pointer-events: none; transition: fill 0.3s ease-in-out; }
+    .segment-text.highlighted-text { fill: #fff; }
+    #centerCircle { fill: var(--primary-blue); }
+    #centerText { font-size: 22px; font-weight: bold; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+    .description-box { position: absolute; width: 320px; padding: 20px; border: 1px solid var(--border-color); border-radius: 8px; background-color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: left; opacity: 0; pointer-events: none; transition: opacity 0.4s ease-in-out, transform 0.4s ease-in-out; transform: scale(0.95); }
+    .description-box.visible { opacity: 1; pointer-events: auto; transform: scale(1); }
+    .description-box h2 { margin-top: 0; color: var(--primary-blue); font-size: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 15px; }
+    .description-box p { font-size: 15px; line-height: 1.5; color: #333; margin-bottom: 20px; }
+    .description-box .example-section { background-color: var(--light-bg); border-top: 1px solid var(--border-color); margin: 20px -20px -20px -20px; padding: 15px 20px 20px 20px; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+    .description-box label { display: block; margin-bottom: 8px; font-weight: 500; color: #333; }
+    .description-box textarea { width: 100%; height: 100px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; font-size: 0.95rem; box-sizing: border-box; font-family: inherit; resize: vertical; }
+    [data-segment="0"] { top: 20px; left: 68%; }
+    [data-segment="1"] { top: 50%; right: 20px; transform: translateY(-50%); }
+    [data-segment="2"] { bottom: 20px; left: 68%; }
+    [data-segment="3"] { bottom: 20px; right: 68%; }
+    [data-segment="4"] { top: 50%; left: 20px; transform: translateY(-50%); }
+    [data-segment="5"] { top: 20px; right: 68%; }
+    .controls-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 1rem; transition: all 0.2s ease-in-out; color: white; }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .reset-btn { background-color: var(--warning-red); }
+    .reset-btn:hover:not(:disabled) { background-color: #d97706; }
+    .export-btn { background-color: var(--secondary-green); }
+    .export-btn:hover:not(:disabled) { background-color: #059669; }
+    #saveStatus { color: #64748b; font-style: italic; transition: opacity 0.5s; }
+    .license-notice { margin-top: 30px; font-size: 14px; color: #666; }
+
+
+    /* === 3. CSS für den Druck-Export === */
+    @media print {
+      /* Blendet alle interaktiven Elemente aus, die im PDF nicht benötigt werden */
+      .controls-container, .description-box, .license-notice, #saveStatus {
+        display: none !important;
+      }
+
+      /* Setzt den Body für einen sauberen Druck zurück */
+      body {
+        background-color: #fff;
+        padding: 0;
+        margin: 0;
+      }
+
+      /* Formatiert den Titel für den Druck */
+      h1 {
+        font-size: 24pt;
+        margin-bottom: 30px;
+        color: #173a79;
+      }
+      
+      /* Formatiert die SVG-Grafik für den Druck */
+      .cycle-container {
+        position: static;
+        width: 100%;
+        height: auto;
+        page-break-after: always; /* Erzwingt einen Seitenumbruch nach der Grafik */
+      }
+      svg {
+        position: static;
+        transform: none;
+        width: 90%;
+        max-width: 500px;
+        display: block;
+        margin: 0 auto;
+      }
+      
+      /* Macht den nur für den Druck bestimmten Container sichtbar */
+      #print-content-area {
+        display: block !important;
+        padding: 0 20px; /* Etwas Abstand zum Seitenrand */
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Der interaktive Politikzyklus</h1>
+
+  <div class="cycle-container" id="cycleContainer">
+    <svg viewBox="0 0 400 400" id="zyklus">
+      <g id="segmentsGroup"></g>
+      <g id="textsGroup"></g>
+      <circle cx="200" cy="200" r="60" id="centerCircle"/>
+      <text x="200" y="200" id="centerText">
+        <tspan dy="-0.6em">Politik</tspan>
+        <tspan x="200" dy="1.2em">zyklus</tspan>
+      </text>
+    </svg>
+    <!-- Die interaktiven Beschreibungs-Boxen für die Web-Ansicht -->
+  </div>
+
+  <div class="controls-container">
+    <button id="exportPdfBtn" class="btn export-btn">Als PDF speichern</button>
+    <button id="resetBtn" class="btn reset-btn">Alle Beispiele zurücksetzen</button>
+    <span id="saveStatus"></span>
+  </div>
+
+  <p class="license-notice">© 2025 Wolfgang Schneider. Dieses Werk ist lizenziert unter <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-NC-SA 4.0</a>.</p>
+  
+  <!-- 2. Neuer Container, der nur für den Druck sichtbar gemacht wird -->
+  <div id="print-content-area" style="display: none;"></div>
+
+  
+  <script>
+(function() {
+  'use strict';
+
+  // Konfiguration und DOM-Elemente bleiben größtenteils gleich
+  const localStorageKey = 'politikzyklusBeispiele_v1';
+  const numSegments = 6;
+  const cycleConfig = [
+    { title: "Problem", description: "In dieser Phase wird ein gesellschaftliches Problem erkannt und definiert. Es wird analysiert, welche Ursachen das Problem hat und warum es politisches Handeln erfordert.", labels: ["Problem"], placeholder: "z.B. Steigende Mieten in Städten machen Wohnraum für Normalverdiener unbezahlbar." },
+    { title: "Auseinandersetzung", description: "Ein Problem wird auf die politische Tagesordnung gesetzt. Akteure aus Politik, Medien und Zivilgesellschaft konkurrieren darum, welche Probleme Aufmerksamkeit erhalten. Verschiedene Handlungsoptionen werden abgewogen und Gesetzesentwürfe, Verordnungen oder Programme formuliert.", labels: ["Auseinander-", "setzung"], placeholder: "z.B. Bürgerinitiativen, Medienberichte und Oppositionsparteien fordern eine 'Mietpreisbremse'." },
+    { title: "Entscheidung", description: "Es wird eine Entscheidung z.B. in Form der Verabschiedung eines Gesetzes oder einer Verordnung getroffen.", labels: ["Entscheidung"], placeholder: "z.B. Das Bauministerium erarbeitet einen Gesetzesentwurf zur Begrenzung von Mieterhöhungen." },
+    { title: "Umsetzung der Entscheidung und Reaktionen", description: "Die beschlossenen Maßnahmen werden in die Praxis umgesetzt. Dies erfolgt durch Behörden und Verwaltungen, die die Gesetze ausführen. Verschiedene Akteure reagieren auf die Entscheidung und passen ihr Verhalten an.", labels: ["Umsetzung"], placeholder: "z.B. Landesregierungen setzen das Gesetz um, Kommunen überwachen die Einhaltung der Mietpreisbremse." },
+    { title: "Evaluation: Problem gelöst?", description: "Nach einiger Zeit wird überprüft, ob die politischen Maßnahmen die gewünschte Wirkung erzielt haben. Die Ergebnisse und Effekte werden analysiert und bewertet.", labels: ["Evabluation:", "Problem", "gelöst?"], placeholder: "z.B. Eine Studie zeigt, dass die Mieten in regulierten Gebieten weniger stark gestiegen sind, es aber Ausweich-Effekte gibt." },
+    { title: "Neues Problem", description: "Basierend auf der Evaluation wird die Politik angepasst, fortgeführt oder beendet. Dieser Schritt kann den Zyklus von Neuem beginnen lassen.", labels: ["Neues", "Problem"], placeholder: "z.B. Das Gesetz wird verschärft, um Schlupflöcher zu schließen, oder durch ein neues Förderprogramm ergänzt." }
+  ];
+  const elements = {
+    container: document.getElementById('cycleContainer'),
+    segmentsGroup: document.getElementById('segmentsGroup'),
+    textsGroup: document.getElementById('textsGroup'),
+    resetBtn: document.getElementById('resetBtn'),
+    saveStatus: document.getElementById('saveStatus'),
+    exportPdfBtn: document.getElementById('exportPdfBtn'),
+    zyklusSVG: document.getElementById('zyklus'),
+    mainTitle: document.querySelector('h1'),
+    printArea: document.getElementById('print-content-area') // Referenz zum neuen Druck-Container
+  };
+  let saveTimeout;
+
+  // Initialisierungslogik bleibt unverändert
+  document.addEventListener('DOMContentLoaded', () => {
+    createUI();
+    setupEventListeners();
+    loadData();
+    highlightSegment(0);
+  });
+  
+  function setupEventListeners() {
+    elements.segmentsGroup.addEventListener('click', (event) => {
+      const clickedSegment = event.target.closest('.segment');
+      if (clickedSegment) {
+        highlightSegment(clickedSegment.dataset.index);
+      }
+    });
+    elements.container.addEventListener('input', (event) => {
+        if (event.target.tagName === 'TEXTAREA') saveData();
+    });
+    elements.resetBtn.addEventListener('click', resetAllData);
+    // Der Export-Button ruft jetzt die neue, einfache Funktion auf
+    elements.exportPdfBtn.addEventListener('click', exportViaPrintDialog);
+  }
+
+  // === 5. Angepasste EXPORT-FUNKTION (löst Druckdialog aus) ===
+  function exportViaPrintDialog() {
+    let printHtml = '';
+
+    // Erstellt den HTML-Inhalt für die Text-Seiten des PDFs
+    cycleConfig.forEach((config, index) => {
+      const textarea = document.getElementById(`example-input-${index}`);
+      // Wichtig: Benutzereingaben "escapen", um HTML-Injection zu verhindern
+      const userExample = (textarea.value.trim() || 'Kein Beispiel eingegeben.')
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;");
+      
+      printHtml += `
+        <div style="margin-bottom: 25px; border-top: 1px solid #ccc; padding-top: 20px; page-break-inside: avoid;">
+          <h2 style="font-size: 16pt; color: #173a79; margin-top: 0;">${index + 1}. ${config.title}</h2>
+          <p style="font-size: 11pt; line-height: 1.5;">${config.description}</p>
+          <div style="background-color: #f8fafc; padding: 15px; border-radius: 5px; border: 1px solid #e2e8f0; margin-top: 15px;">
+            <h3 style="font-size: 12pt; margin-top: 0; margin-bottom: 10px; color: #333;">Ihr konkretes Beispiel:</h3>
+            <p style="font-size: 11pt; white-space: pre-wrap; margin: 0; color: #444;">${userExample}</p>
+          </div>
+        </div>
+      `;
+    });
+
+    // Füllt den Druck-Container mit dem generierten HTML
+    elements.printArea.innerHTML = printHtml;
+    
+    // Ruft den Druck-Dialog des Browsers auf
+    window.print();
+    
+    // Leert den Container wieder, nachdem der Druckauftrag erstellt wurde
+    elements.printArea.innerHTML = '';
+  }
+
+
+  // Alle anderen Funktionen (saveData, loadData, resetAllData, createUI, etc.) bleiben exakt gleich.
+  // Hier sind sie der Vollständigkeit halber noch einmal aufgeführt.
+  function saveData() { const dataToSave = {}; const textareas = elements.container.querySelectorAll('textarea'); textareas.forEach(area => { if (area.value.trim()) { dataToSave[area.id] = area.value; } }); localStorage.setItem(localStorageKey, JSON.stringify(dataToSave)); elements.saveStatus.textContent = 'Gespeichert!'; elements.saveStatus.style.opacity = '1'; clearTimeout(saveTimeout); saveTimeout = setTimeout(() => { elements.saveStatus.style.opacity = '0'; }, 2000); }
+  function loadData() { const savedData = localStorage.getItem(localStorageKey); if (!savedData) return; const data = JSON.parse(savedData); for (const id in data) { const textarea = document.getElementById(id); if (textarea) { textarea.value = data[id]; } } }
+  function resetAllData() { if (confirm("Möchten Sie wirklich alle eingegebenen Beispiele löschen?")) { localStorage.removeItem(localStorageKey); elements.container.querySelectorAll('textarea').forEach(area => area.value = ''); elements.saveStatus.textContent = 'Daten gelöscht.'; elements.saveStatus.style.opacity = '1'; clearTimeout(saveTimeout); saveTimeout = setTimeout(() => { elements.saveStatus.style.opacity = '0'; }, 2000); } }
+  function createUI() { for (let i = 0; i < numSegments; i++) { createSegment(i, cycleConfig[i].labels); createDescriptionBox(i, cycleConfig[i]); } }
+  function highlightSegment(index) { document.querySelectorAll(".segment").forEach(s => s.classList.remove("highlight")); document.querySelectorAll(".segment-text").forEach(t => t.classList.remove("highlighted-text")); document.querySelectorAll(".description-box").forEach(box => box.classList.remove('visible')); const segment = document.querySelector(`.segment[data-index="${index}"]`); const text = document.querySelector(`.segment-text[data-index="${index}"]`); const box = document.querySelector(`.description-box[data-segment="${index}"]`); if (segment) segment.classList.add("highlight"); if (text) text.classList.add("highlighted-text"); if (box) box.classList.add('visible'); }
+  function createDescriptionBox(index, config) { const box = document.createElement('div'); box.className = 'description-box'; box.dataset.segment = index; const textareaId = `example-input-${index}`; box.innerHTML = `<h2>${config.title}</h2><p>${config.description}</p><div class="example-section"><label for="${textareaId}">Konkretes Beispiel:</label><textarea id="${textareaId}" name="${textareaId}" placeholder="${config.placeholder}"></textarea></div>`; elements.container.appendChild(box); }
+  function createSegment(index, labels) { const centerX = 200, centerY = 200, outerRadius = 180, innerRadius = 60; const angle = 360 / numSegments; const startAngle = index * angle - 90, endAngle = (index + 1) * angle - 90; const startXOuter = centerX + outerRadius * Math.cos(startAngle * Math.PI / 180), startYOuter = centerY + outerRadius * Math.sin(startAngle * Math.PI / 180); const endXOuter = centerX + outerRadius * Math.cos(endAngle * Math.PI / 180), endYOuter = centerY + outerRadius * Math.sin(endAngle * Math.PI / 180); const startXInner = centerX + innerRadius * Math.cos(startAngle * Math.PI / 180), startYInner = centerY + innerRadius * Math.sin(startAngle * Math.PI / 180); const endXInner = centerX + innerRadius * Math.cos(endAngle * Math.PI / 180), endYInner = centerY + innerRadius * Math.sin(endAngle * Math.PI / 180); const largeArcFlag = angle > 180 ? 1 : 0; const pathData = `M ${startXInner},${startYInner} L ${startXOuter},${startYOuter} A ${outerRadius},${outerRadius} 0 ${largeArcFlag},1 ${endXOuter},${endYOuter} L ${endXInner},${endYInner} A ${innerRadius},${innerRadius} 0 ${largeArcFlag},0 ${startXInner},${startYInner} Z`; const path = document.createElementNS("http://www.w3.org/2000/svg", "path"); path.setAttribute("d", pathData); path.classList.add("segment"); path.setAttribute("data-index", index); elements.segmentsGroup.appendChild(path); const textAngle = (startAngle + endAngle) / 2; const textRadius = innerRadius + (outerRadius - innerRadius) / 2; const textX = centerX + textRadius * Math.cos(textAngle * Math.PI / 180), textY = centerY + textRadius * Math.sin(textAngle * Math.PI / 180); const textElement = document.createElementNS("http://www.w3.org/2000/svg", "text"); textElement.setAttribute("x", textX); textElement.setAttribute("y", textY); textElement.classList.add("segment-text"); textElement.setAttribute("data-index", index); const lineHeightEm = 1.2, initialDy = -((labels.length - 1) / 2) * lineHeightEm; labels.forEach((line, i) => { const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan"); tspan.setAttribute("x", textX); tspan.setAttribute("dy", `${i === 0 ? initialDy : lineHeightEm}em`); tspan.textContent = line; textElement.appendChild(tspan); }); elements.textsGroup.appendChild(textElement); }
+
+})();
+  </script>
+
+</body>
+</html>
